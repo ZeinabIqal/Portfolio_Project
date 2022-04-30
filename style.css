@@ -1,10 +1,9 @@
 body {
   padding: 0;
   margin: 0;
-  box-sizing: border-box;
 }
 
-.container {
+.background {
   background-image: url(./Images/background.png);
   background-repeat: no-repeat;
   position: absolute;
@@ -29,17 +28,12 @@ body {
 .github-account {
   font-family: 'poppins', sans-serif;
   font-weight: 700;
-  font-size: 20px;
+  font-size: 18px;
   text-decoration: none;
-  color: #f66969;
-  width: 140px;
+  color: #6070ff;
+  width: fit-content;
   display: inline-block;
   margin-left: 12px;
-  text-transform: uppercase;
-}
-
-.github-account span {
-  color: #344563;
 }
 
 .nav-icon {
@@ -50,15 +44,14 @@ body {
 
 .header {
   width: 327px;
-  line-height: 65px;
+  line-height: 75px;
   margin-top: 45px;
   margin-left: 24px;
   margin-bottom: 0;
   font-family: 'poppins', sans-serif;
   font-weight: 700, bold;
   font-size: 40px;
-  color: #e56464;
-  text-transform: capitalize;
+  color: #172b4d;
 }
 
 .introduction {
@@ -80,7 +73,7 @@ body {
   font-style: 'poppins', sans-serif;
   font-weight: 500;
   font-size: 16px;
-  color: #f66969;
+  color: #7f8cff;
   margin-left: 24px;
   margin-bottom: 0;
 }
@@ -101,5 +94,5 @@ ul li {
 
 .icons-list {
   display: flex;
-  gap: 20px;
+  gap: 15px;
 }
