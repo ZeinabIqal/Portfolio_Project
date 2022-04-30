@@ -2,7 +2,7 @@
 
 # Portfolio Project
 
-> Portfolio Project is a project is the V1.0 of Microverse Portfolio Projects. This project enable studens to work with Figma template and start the HTML & CSS work with very basic design. 
+> Portfolio Project is a project is the V2.0 of Microverse Portfolio Projects. This project enable studens to work with Figma template and start the HTML & CSS work with very basic design. 
 
 ## Built With
 
