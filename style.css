@@ -4,7 +4,6 @@
 }
 
 .background-image {
-  background-image: url(./images/background.png);
   display: flex;
   flex-direction: column;
   flex-wrap: wrap;
@@ -12,6 +11,18 @@
   height: 618px;
   margin-top: 20px;
   margin-left: 24px;
+}
+
+.img {
+  position: absolute;
+  background-repeat: no-repeat;
+  width: 375px;
+  height: 618px;
+  margin-top: 20px;
+  margin-left: 18px;
+  top: 0;
+  left: 0;
+  z-index: -1;
 }
 
 .navbar {
@@ -171,7 +182,7 @@ ul li {
 }
 
 button {
-  transition-duration: 0.5s;
+  transition-duration: .5s;
 }
 
 button:hover {
