@@ -182,7 +182,7 @@ ul li {
 }
 
 button {
-  transition-duration: .5s;
+  transition-duration: 0.5s;
 }
 
 button:hover {
