@@ -1,0 +1,521 @@
+########################################################################
+#  ACCESS CONTROL MODELS - SINGLE TEST FILE
+#  This file consolidates all models into one non-executable test script.
+#  For purely academic / testing purposes (not a runnable program).
+#  The theoretical background is in Methodology_Overview.md
+########################################################################
+
+import random
+import time
+import psutil  # For CPU and memory usage tracking
+import numpy as np
+import skfuzzy as fuzz
+from skfuzzy import control as ctrl
+
+########################################################################
+# 1) BASIC ACCESS CONTROL MODEL
+########################################################################
+
+class BasicAccessControl:
+    """
+    A simple RFID-based access control model.
+
+    Attributes:
+        authorized_rfids (list): List of authorized RFID tags.
+    """
+
+    def __init__(self, authorized_rfids):
+        """
+        Initialize the basic access control system.
+        
+        :param authorized_rfids: List of authorized RFID tags.
+        """
+        self.authorized_rfids = authorized_rfids
+
+    def check_access(self, rfid):
+        """
+        Check if an RFID tag is authorized.
+        
+        :param rfid: RFID tag to check.
+        :return: True if authorized, False otherwise.
+        """
+        return rfid in self.authorized_rfids
+
+    def simulate_access_attempts(self, num_attempts):
+        """
+        Simulate access attempts and log results.
+
+        :param num_attempts: Number of access attempts to simulate.
+        :return: List of results for each attempt (with CPU, memory usage).
+        """
+        results = []
+        for attempt in range(1, num_attempts + 1):
+            start_time = time.time()
+
+            # Simulate RFID tag (90% chance authorized, 10% unauthorized)
+            if random.random() > 0.1:
+                rfid = random.choice(self.authorized_rfids)
+                access_granted = True
+            else:
+                rfid = f"RFID_{random.randint(100, 999)}"  # Unrecognized
+                access_granted = False
+
+            auth_time = time.time() - start_time
+            cpu_usage = psutil.cpu_percent()
+            memory_usage = psutil.virtual_memory().percent
+
+            results.append({
+                "Attempt": attempt,
+                "RFID": rfid,
+                "Access Granted": "Yes" if access_granted else "No",
+                "Authentication Time (s)": round(auth_time, 3),
+                "CPU Usage (%)": round(cpu_usage, 2),
+                "Memory Usage (%)": round(memory_usage, 2)
+            })
+
+        return results
+
+# ----------------------------------------------------------------------
+# Example usage (commented out for non-executable test file):
+#
+# authorized_rfids = [f"RFID_{i:03}" for i in range(1, 101)]
+# basic_access = BasicAccessControl(authorized_rfids)
+# simulated_results = basic_access.simulate_access_attempts(100)
+# for r in simulated_results:
+#     print(r)
+# ----------------------------------------------------------------------
+
+########################################################################
+# 2) FUZZY LOGIC ACCESS CONTROL MODEL
+########################################################################
+
+# Define fuzzy variables (global for demonstration, but typically enclosed in a function/class)
+activity_level = ctrl.Antecedent(np.arange(0, 11, 1), 'activity_level')
+time_of_day    = ctrl.Antecedent(np.arange(0, 24, 1), 'time_of_day')
+location       = ctrl.Antecedent(np.arange(0, 11, 1), 'location')
+device_trust_level = ctrl.Antecedent(np.arange(0, 11, 1), 'device_trust_level')
+previous_access_attempts = ctrl.Antecedent(np.arange(0, 11, 1), 'previous_access_attempts')
+failed_attempts = ctrl.Antecedent(np.arange(0, 11, 1), 'failed_attempts')
+
+risk_level = ctrl.Consequent(np.arange(0, 101, 1), 'risk_level')
+
+# Membership functions
+activity_level['low']    = fuzz.trimf(activity_level.universe, [0, 0, 5])
+activity_level['medium'] = fuzz.trimf(activity_level.universe, [0, 5, 10])
+activity_level['high']   = fuzz.trimf(activity_level.universe, [5, 10, 10])
+
+time_of_day['morning']   = fuzz.trimf(time_of_day.universe, [0, 0, 12])
+time_of_day['afternoon'] = fuzz.trimf(time_of_day.universe, [10, 12, 18])
+time_of_day['evening']   = fuzz.trimf(time_of_day.universe, [16, 18, 24])
+time_of_day['night']     = fuzz.trimf(time_of_day.universe, [20, 24, 24])
+
+location['safe']      = fuzz.trimf(location.universe, [0, 0, 5])
+location['uncertain'] = fuzz.trimf(location.universe, [3, 5, 8])
+location['risky']     = fuzz.trimf(location.universe, [6, 10, 10])
+
+device_trust_level['low']    = fuzz.trimf(device_trust_level.universe, [0, 0, 5])
+device_trust_level['medium'] = fuzz.trimf(device_trust_level.universe, [0, 5, 10])
+device_trust_level['high']   = fuzz.trimf(device_trust_level.universe, [5, 10, 10])
+
+previous_access_attempts['few']  = fuzz.trimf(previous_access_attempts.universe, [0, 0, 5])
+previous_access_attempts['some'] = fuzz.trimf(previous_access_attempts.universe, [0, 5, 10])
+previous_access_attempts['many'] = fuzz.trimf(previous_access_attempts.universe, [5, 10, 10])
+
+failed_attempts['none'] = fuzz.trimf(failed_attempts.universe, [0, 0, 5])
+failed_attempts['few']  = fuzz.trimf(failed_attempts.universe, [0, 5, 10])
+failed_attempts['many'] = fuzz.trimf(failed_attempts.universe, [5, 10, 10])
+
+risk_level['low']    = fuzz.trimf(risk_level.universe, [0, 0, 50])
+risk_level['medium'] = fuzz.trimf(risk_level.universe, [0, 50, 100])
+risk_level['high']   = fuzz.trimf(risk_level.universe, [50, 100, 100])
+
+# Define fuzzy rules
+rule1 = ctrl.Rule(activity_level['high'] & time_of_day['night'], risk_level['high'])
+rule2 = ctrl.Rule(activity_level['low'] & location['safe'], risk_level['low'])
+rule3 = ctrl.Rule(device_trust_level['low'] & failed_attempts['many'], risk_level['high'])
+rule4 = ctrl.Rule(previous_access_attempts['few'] & location['uncertain'], risk_level['medium'])
+rule5 = ctrl.Rule(previous_access_attempts['many'] & failed_attempts['none'], risk_level['low'])
+
+# Control system
+risk_control = ctrl.ControlSystem([rule1, rule2, rule3, rule4, rule5])
+risk_simulation = ctrl.ControlSystemSimulation(risk_control)
+
+def evaluate_risk(activity, t_of_day, loc, trust, prev_attempts, fail_attempts):
+    """
+    Evaluate risk using the above fuzzy logic system.
+    """
+    risk_simulation.input['activity_level'] = activity
+    risk_simulation.input['time_of_day'] = t_of_day
+    risk_simulation.input['location'] = loc
+    risk_simulation.input['device_trust_level'] = trust
+    risk_simulation.input['previous_access_attempts'] = prev_attempts
+    risk_simulation.input['failed_attempts'] = fail_attempts
+
+    risk_simulation.compute()
+    return risk_simulation.output['risk_level']
+
+def simulate_fuzzy_access_attempts(num_attempts):
+    """
+    Simulate a number of fuzzy-logic-based access attempts.
+    """
+    results = []
+    for attempt in range(1, num_attempts + 1):
+        start_time = time.time()
+
+        # Random inputs
+        act = random.randint(0, 10)
+        t_day = random.randint(0, 23)
+        loc  = random.randint(0, 10)
+        trust = random.randint(0, 10)
+        prev = random.randint(0, 10)
+        fail = random.randint(0, 10)
+
+        # Fuzzy evaluation
+        risk_val = evaluate_risk(act, t_day, loc, trust, prev, fail)
+
+        # If risk <= 50 => Access Granted
+        access_granted = "Yes" if risk_val <= 50 else "No"
+
+        auth_time = time.time() - start_time
+        cpu_usage = psutil.cpu_percent()
+        memory_usage = psutil.virtual_memory().percent
+
+        results.append({
+            "Attempt": attempt,
+            "Activity Level": act,
+            "Time of Day": t_day,
+            "Location": loc,
+            "Device Trust Level": trust,
+            "Previous Attempts": prev,
+            "Failed Attempts": fail,
+            "Risk Level": round(risk_val, 2),
+            "Access Granted": access_granted,
+            "Authentication Time (s)": round(auth_time, 3),
+            "CPU Usage (%)": round(cpu_usage, 2),
+            "Memory Usage (%)": round(memory_usage, 2)
+        })
+
+    return results
+
+# ----------------------------------------------------------------------
+# Example usage (commented out for non-executable test file):
+#
+# fuzz_results = simulate_fuzzy_access_attempts(100)
+# for res in fuzz_results[:10]:
+#     print(res)
+# ----------------------------------------------------------------------
+
+########################################################################
+# 3) ENHANCED FUZZY LOGIC IOT ACCESS CONTROL MODEL
+########################################################################
+
+# Define fuzzy variables for the enhanced approach
+activity_level_enhanced   = ctrl.Antecedent(np.arange(0, 11, 1), 'activity_level')
+time_of_day_enhanced      = ctrl.Antecedent(np.arange(0, 24, 1), 'time_of_day')
+clearance_level_enhanced  = ctrl.Antecedent(np.arange(0, 11, 1), 'clearance_level')
+risk_level_enhanced       = ctrl.Consequent(np.arange(0, 11, 1), 'risk_level')
+
+# Membership functions
+activity_level_enhanced['Low']    = fuzz.trimf(activity_level_enhanced.universe, [0, 0, 5])
+activity_level_enhanced['Medium'] = fuzz.trimf(activity_level_enhanced.universe, [0, 5, 10])
+activity_level_enhanced['High']   = fuzz.trimf(activity_level_enhanced.universe, [5, 10, 10])
+
+time_of_day_enhanced['Usual']    = fuzz.trimf(time_of_day_enhanced.universe, [0, 0, 12])
+time_of_day_enhanced['Unusual']  = fuzz.trimf(time_of_day_enhanced.universe, [12, 24, 24])
+
+clearance_level_enhanced['Low']    = fuzz.trimf(clearance_level_enhanced.universe, [0, 0, 5])
+clearance_level_enhanced['Medium'] = fuzz.trimf(clearance_level_enhanced.universe, [0, 5, 10])
+clearance_level_enhanced['High']   = fuzz.trimf(clearance_level_enhanced.universe, [5, 10, 10])
+
+risk_level_enhanced['Low']    = fuzz.trimf(risk_level_enhanced.universe, [0, 0, 5])
+risk_level_enhanced['Medium'] = fuzz.trimf(risk_level_enhanced.universe, [0, 5, 10])
+risk_level_enhanced['High']   = fuzz.trimf(risk_level_enhanced.universe, [5, 10, 10])
+
+# Fuzzy rules (two-layer approach)
+# Authorization Layer
+rule1_enhanced = ctrl.Rule(clearance_level_enhanced['High'] & activity_level_enhanced['Low'],
+                           risk_level_enhanced['Low'])
+rule2_enhanced = ctrl.Rule(clearance_level_enhanced['Medium'] & activity_level_enhanced['Medium'],
+                           risk_level_enhanced['Medium'])
+rule3_enhanced = ctrl.Rule(clearance_level_enhanced['Low'] & activity_level_enhanced['High'],
+                           risk_level_enhanced['High'])
+
+# Anomaly Detection Layer
+rule4_enhanced = ctrl.Rule(activity_level_enhanced['High'] & time_of_day_enhanced['Unusual'],
+                           risk_level_enhanced['High'])
+rule5_enhanced = ctrl.Rule(activity_level_enhanced['Low'] & time_of_day_enhanced['Usual'],
+                           risk_level_enhanced['Low'])
+
+# Build the control systems
+authorization_ctrl = ctrl.ControlSystem([rule1_enhanced, rule2_enhanced, rule3_enhanced])
+anomaly_ctrl       = ctrl.ControlSystem([rule4_enhanced, rule5_enhanced])
+
+authorization_sim = ctrl.ControlSystemSimulation(authorization_ctrl)
+anomaly_sim       = ctrl.ControlSystemSimulation(anomaly_ctrl)
+
+def enhanced_fuzzy_logic_model(activity, tod, clearance):
+    """
+    Evaluate risk using two-layer fuzzy logic system (Authorization + Anomaly Detection).
+    Combines both outputs (max).
+    Returns (risk_label, access_granted, combined_output_value).
+    """
+    authorization_sim.input['activity_level']   = activity
+    authorization_sim.input['clearance_level']  = clearance
+    anomaly_sim.input['activity_level']         = activity
+    anomaly_sim.input['time_of_day']            = tod
+
+    authorization_sim.compute()
+    anomaly_sim.compute()
+
+    # Combine results
+    auth_output = authorization_sim.output['risk_level']
+    anom_output = anomaly_sim.output['risk_level']
+    combined    = max(auth_output, anom_output)
+
+    # Interpret
+    if combined <= 3:
+        return ('Low', 'Yes', combined)
+    elif combined <= 7:
+        return ('Medium', 'Yes', combined)
+    else:
+        return ('High', 'No', combined)
+
+# ----------------------------------------------------------------------
+# Example usage (commented out):
+#
+# test_attempts = [
+#     {'Activity Level': 8, 'Time of Day': 22, 'Clearance Level': 6},
+#     {'Activity Level': 3, 'Time of Day': 8,  'Clearance Level': 4}
+# ]
+# for i, attempt in enumerate(test_attempts):
+#     risk_label, granted, c_out = enhanced_fuzzy_logic_model(
+#         attempt['Activity Level'],
+#         attempt['Time of Day'],
+#         attempt['Clearance Level'])
+#     print(f"Attempt {i+1}, Risk={risk_label}, Access={granted}, Combined={c_out}")
+# ----------------------------------------------------------------------
+
+########################################################################
+# 4) Q-LEARNING-BASED ACCESS CONTROL
+########################################################################
+
+class QLearningAgent:
+    """
+    Q-learning-based access control agent.
+
+    Trains a policy over discrete states and actions:
+    - state_space_size: total number of discrete states
+    - action_space_size: number of possible actions (deny, require 2FA, grant, etc.)
+    """
+
+    def __init__(self, state_space_size, action_space_size,
+                 alpha=0.1, gamma=0.9, epsilon=0.1):
+        self.state_space_size = state_space_size
+        self.action_space_size = action_space_size
+        self.alpha = alpha   # Learning rate
+        self.gamma = gamma   # Discount factor
+        self.epsilon = epsilon  # Exploration rate
+        self.q_table = np.zeros((state_space_size, action_space_size))
+
+    def choose_action(self, state):
+        """
+        Epsilon-greedy strategy for action selection.
+        """
+        if random.uniform(0, 1) < self.epsilon:
+            return random.randint(0, self.action_space_size - 1)
+        else:
+            return np.argmax(self.q_table[state])
+
+    def update_q_value(self, state, action, reward, next_state):
+        """
+        Bellman equation for updating Q-values:
+           Q(state,action) <- Q(state,action) + alpha * [reward + gamma * max Q(next_state, *) - Q(state,action)]
+        """
+        best_next = np.argmax(self.q_table[next_state])
+        td_target = reward + self.gamma * self.q_table[next_state, best_next]
+        td_error  = td_target - self.q_table[state, action]
+        self.q_table[state, action] += self.alpha * td_error
+
+    def train(self, episodes, initial_state, get_next_state_and_reward):
+        """
+        Train the Q-learning agent for 'episodes' iterations.
+        get_next_state_and_reward is an environment simulator function.
+        """
+        results = []
+        for ep in range(episodes):
+            state = initial_state
+            while True:
+                start_time = time.time()
+                action = self.choose_action(state)
+                next_state, reward, done = get_next_state_and_reward(state, action)
+                self.update_q_value(state, action, reward, next_state)
+
+                auth_time = time.time() - start_time
+                cpu_usage = psutil.cpu_percent()
+                memory_usage = psutil.virtual_memory().percent
+
+                results.append({
+                    "Episode": ep + 1,
+                    "State": state,
+                    "Action": action,
+                    "Authentication Time (s)": auth_time,
+                    "CPU Usage (%)": cpu_usage,
+                    "Memory Usage (%)": memory_usage
+                })
+
+                state = next_state
+                if done:
+                    break
+
+        return results
+
+# ----------------------------------------------------------------------
+# Example usage of training (commented out):
+#
+# def environment_sim(state, action):
+#     if action == 0:  # Deny
+#         next_state = state
+#         reward = -1
+#     elif action == 1:  # Require 2FA
+#         next_state = (state + 1) % 10
+#         reward = 0
+#     else:  # Grant
+#         next_state = (state + 2) % 10
+#         reward = 1
+#     done = (state >= 10)
+#     return next_state, reward, done
+#
+# q_agent = QLearningAgent(10, 3)
+# train_res = q_agent.train(100, 0, environment_sim)
+# print("Training done.")
+# ----------------------------------------------------------------------
+
+########################################################################
+# 5) ADAPTIVE RISK-BASED ACCESS CONTROL (Q-LEARNING + FUZZY LOGIC)
+########################################################################
+
+# Define fuzzy variables to reuse in the hybrid approach
+activity_level_hybrid = ctrl.Antecedent(np.arange(0, 11, 1), 'activity_level')
+device_trust_hybrid   = ctrl.Antecedent(np.arange(0, 11, 1), 'device_trust')
+risk_level_hybrid     = ctrl.Consequent(np.arange(0, 101, 1), 'risk_level')
+
+# Memberships
+activity_level_hybrid.automf(3)  # 'poor', 'average', 'good'
+device_trust_hybrid.automf(3)    # 'poor', 'average', 'good'
+
+risk_level_hybrid['low']    = fuzz.trimf(risk_level_hybrid.universe, [0, 0, 50])
+risk_level_hybrid['medium'] = fuzz.trimf(risk_level_hybrid.universe, [0, 50, 100])
+risk_level_hybrid['high']   = fuzz.trimf(risk_level_hybrid.universe, [50, 100, 100])
+
+rule1_hybrid = ctrl.Rule(activity_level_hybrid['poor']   & device_trust_hybrid['poor'],
+                         risk_level_hybrid['high'])
+rule2_hybrid = ctrl.Rule(activity_level_hybrid['average'] & device_trust_hybrid['average'],
+                         risk_level_hybrid['medium'])
+rule3_hybrid = ctrl.Rule(activity_level_hybrid['good']   & device_trust_hybrid['good'],
+                         risk_level_hybrid['low'])
+
+hybrid_control     = ctrl.ControlSystem([rule1_hybrid, rule2_hybrid, rule3_hybrid])
+hybrid_simulation  = ctrl.ControlSystemSimulation(hybrid_control)
+
+class HybridQLearningAgent:
+    """
+    A Q-learning agent that integrates fuzzy logic-based risk evaluation.
+    """
+
+    def __init__(self, state_space_size, action_space_size,
+                 alpha=0.1, gamma=0.9, epsilon=0.1, q_table=None):
+        self.state_space_size = state_space_size
+        self.action_space_size = action_space_size
+        self.alpha = alpha
+        self.gamma = gamma
+        self.epsilon = epsilon
+        if q_table is None:
+            self.q_table = np.zeros((state_space_size, action_space_size))
+        else:
+            self.q_table = q_table
+
+    def evaluate_risk_fuzzy(self, activity, trust):
+        """
+        Use fuzzy logic to get a risk measure.
+        """
+        hybrid_simulation.input['activity_level'] = activity
+        hybrid_simulation.input['device_trust']   = trust
+        hybrid_simulation.compute()
+        return hybrid_simulation.output['risk_level']
+
+    def choose_action(self, state):
+        """
+        Epsilon-greedy.
+        """
+        if random.uniform(0, 1) < self.epsilon:
+            return random.randint(0, self.action_space_size - 1)
+        else:
+            return np.argmax(self.q_table[state])
+
+    def update_q_value(self, state, action, reward, next_state):
+        best_next = np.argmax(self.q_table[next_state])
+        td_target = reward + self.gamma * self.q_table[next_state, best_next]
+        td_error  = td_target - self.q_table[state, action]
+        self.q_table[state, action] += self.alpha * td_error
+
+    def train(self, episodes, initial_state, get_next_state_and_reward):
+        """
+        Train the hybrid agent, sampling random activity/trust each step
+        to evaluate fuzzy risk.
+        """
+        results = []
+        for ep in range(episodes):
+            state = initial_state
+            while True:
+                start_time = time.time()
+
+                # Randomly generate values to feed fuzzy logic
+                activity = random.randint(0, 10)
+                trust    = random.randint(0, 10)
+                # Evaluate risk (though not necessarily used as state)
+                risk_val = self.evaluate_risk_fuzzy(activity, trust)
+
+                action = self.choose_action(state)
+                next_state, reward, done = get_next_state_and_reward(state, action)
+                self.update_q_value(state, action, reward, next_state)
+
+                auth_time = time.time() - start_time
+                cpu_usage = psutil.cpu_percent()
+                memory_usage = psutil.virtual_memory().percent
+
+                results.append({
+                    "Episode": ep + 1,
+                    "State": state,
+                    "Fuzzy Risk": risk_val,
+                    "Action": action,
+                    "Authentication Time (s)": auth_time,
+                    "CPU Usage (%)": cpu_usage,
+                    "Memory Usage (%)": memory_usage
+                })
+
+                state = next_state
+                if done:
+                    break
+
+        return results
+
+# ----------------------------------------------------------------------
+# Example usage (commented out):
+#
+# def hybrid_env_sim(state, action):
+#     if action == 0:
+#         next_state = state
+#         reward = -1
+#     elif action == 1:
+#         next_state = (state + 1) % 10
+#         reward = 0
+#     else:
+#         next_state = (state + 2) % 10
+#         reward = 1
+#     done = (state >= 10)
+#     return next_state, reward, done
+#
+# hybrid_agent = HybridQLearningAgent(10, 3)
+# train_res = hybrid_agent.train(100, 0, hybrid_env_sim)
+# print("Hybrid training done.")
+# ----------------------------------------------------------------------
